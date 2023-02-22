@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+require "bundler/gem_tasks"
+task default: %i[]
+
+begin
+  require_relative '../rake_tasks'
+  Kitchen::RakeTasks.new
+rescue LoadError
+  puts '>>>>> Kitchen gem not loaded, omitting tasks' unless ENV['CI']
+end
