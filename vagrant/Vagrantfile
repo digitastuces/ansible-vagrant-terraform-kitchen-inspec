@@ -26,7 +26,6 @@ Vagrant.configure(API_VERSION) do |config|
   config.vm.provision "file", source: "./id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
   config.vm.provision "shell", inline: "cp /vagrant/id_rsa ~/.ssh/id_rsa"
   config.vm.provision "file", source: "./.config", destination: "~/.ssh/config"
-  config.vm.provision "shell",inline: "cp /vagrant/.hosts /home/vagrant/hosts"
   config.vm.provision "shell" do |s|
     ssh_pub_key = File.readlines("/home/adieng/.ssh/vagrant_rsa.pub").first.strip
     s.inline = <<-SHELL
@@ -51,6 +50,7 @@ Vagrant.configure(API_VERSION) do |config|
       master.vm.network "forwarded_port", guest: 80,  host: 8081, auto_correct: true
       master.vm.network "forwarded_port", guest: 443, host: 8443, auto_correct: true
       master.vm.hostname = "master#{i}"
+      master.vm.provision "shell",inline: "cp /vagrant/.hosts /home/vagrant/hosts"
 
       master.vm.provision "ansible" do |ansible|
         ansible.playbook = "playbook-ansible.yml"
