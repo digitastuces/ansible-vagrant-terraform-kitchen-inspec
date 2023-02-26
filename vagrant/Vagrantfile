@@ -3,59 +3,94 @@
 
 API_VERSION = "2"
 
+$ansiblemaster = <<-SCRIPT
+sudo apt-get update -y && sudo apt-get upgrade -y
+sudo apt install software-properties-common
+sudo apt-add-repository  --yes ppa:ansible/ansible
+sudo apt-get install ansible --yes
+SCRIPT
+
+$commonscript = <<-SCRIPT
+sudo echo "192.168.56.11   master1" >> /etc/hosts
+sudo echo "192.168.56.12   master2" >> /etc/hosts
+sudo echo "192.168.56.21   worker1" >> /etc/hosts
+sudo echo "192.168.56.22   worker2" >> /etc/hosts
+sudo echo "192.168.56.23   worker3" >> /etc/hosts
+cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+sudo chmod 400  /home/vagrant/.ssh/id_rsa
+sudo chown vagrant:vagrant /home/vagrant/.ssh/id_rsa
+SCRIPT
+
 Vagrant.configure(API_VERSION) do |config|
+  # config.vm.synced_folder "../data", "/vagrant_data"
+  config.vm.synced_folder ".", "/vagrant", owner: "vagrant", group: "vagrant"
+  config.vm.provision "file", source: "~/.ssh/vagrant_rsa.pub", destination: "~/.ssh/vagrant_rsa.pub"
+  config.vm.provision "file", source: "./id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
+  config.vm.provision "file", source: "./id_rsa", destination: "~/.ssh/id_rsa"
+  config.vm.provision "file", source: "./.config", destination: "~/.ssh/config"
+  config.vm.provision "shell" do |s|
+    ssh_pub_key = File.readlines("/home/adieng/.ssh/vagrant_rsa.pub").first.strip
+    s.inline = <<-SHELL
+    sudo mkdir -p /root/.ssh/
+    sudo mkdir -p /home/vagrant/.ssh/ && sudo chown vagrant:vagrant $_
+    echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+    echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+    SHELL
+  end
+  
+  config.vm.provider "virtualbox" do |hv|
+    hv.cpus = "1"
+    hv.memory = "512"
+  end
   config.vm.box = "debian/bullseye64"
   config.vm.box_check_update = false
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
   # config.vm.network "public_network"
-  (1..3).each do |i|
-    config.vm.define "node#{i}" do |node|
-      node.vm.network :private_network, ip: "192.168.3.1#{i}"
-      node.vm.network "forwarded_port", guest: 80, host: 8080
-      node.vm.network "forwarded_port", guest: 443, host: 8443
 
-      node.vm.hostname = "node#{i}"
-      node.vm.provision "shell", inline: <<-SHELL
-        #sudo apt-get update -y
-        touch test.yaml
-        sudo mkdir -p /root/.ssh/
-      SHELL
+  # MASTER
+  (1..2).each do |i|
+    config.vm.define "master#{i}" do |master|
+      master.vm.network :private_network, ip: "192.168.56.1#{i}"
+      master.vm.network "forwarded_port", guest: 80,  host: 8081, auto_correct: true
+      master.vm.network "forwarded_port", guest: 443, host: 8443, auto_correct: true
+      master.vm.hostname = "master#{i}"
 
-      node.vm.provision "ansible" do |ansible|
+      master.vm.provision "ansible" do |ansible|
         ansible.playbook = "playbook-ansible.yml"
       end
 
-      # Vagrant PUSH
-      # La commande vagrant push permet d’invoquer une commande shell 
-      # ou un script arbitraire dans le cadre d’un push.
-      # Par exemple, vous pouvez lancer des playbooks en prenant l’inventaire généré 
-      # dans la partie provisioning :
-      node.push.define "local-exec" do |push|
+      # Installing required packages for ansible master
+      master.vm.provision "shell", inline: $commonscript
+      master.vm.provision "shell", inline: $ansiblemaster
+    end
+  end
+
+  # WORKERS
+  (1..3).each do |i|
+    config.vm.define "worker#{i}" do |worker|
+      worker.vm.network :private_network, ip: "192.168.56.2#{i}"
+      worker.vm.network "forwarded_port", guest: 80,  host: 8081, auto_correct: true
+      worker.vm.network "forwarded_port", guest: 443, host: 8443, auto_correct: true
+
+      worker.vm.hostname = "worker#{i}"
+
+      worker.vm.provision "ansible" do |ansible|
+        ansible.playbook = "playbook-ansible.yml"
+      end
+
+      # La commande Vagrant PUSH permet d’invoquer une commande shell ou un script arbitraire dans le cadre d’un push.
+      # Par exemple, vous pouvez lancer des playbooks en prenant l’inventaire généré  dans la partie provisioning :
+      worker.push.define "local-exec" do |push|
         push.inline = <<-SCRIPT
           ansible-playbook -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory master.yml
           ansible-playbook -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory slave.yml
         SCRIPT
       end
 
-      node.vm.provision "shell" do |s|
-        ssh_pub_key = File.readlines("/home/adieng/.ssh/vagrant_rsa.pub").first.strip
-        s.inline = <<-SHELL
-        echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
-        echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
-        SHELL
-      end
-    
-      node.vm.provision "file", source: "~/.ssh/vagrant_rsa.pub", destination: "~/.ssh/vagrant_rsa.pub"
+      # Installing required packages for  all workers
+      worker.vm.provision "shell", inline: $commonscript
     end
   end
 
-  # config.vm.synced_folder "../data", "/vagrant_data"
-  config.vm.synced_folder '.', '/vagrant', disabled: true
-
-  config.vm.provider "libvirt" do |hv|
-    hv.cpus = "1"
-    hv.memory = "512"
-  end
   # config.vm.provision "ansible" do |ansible|
   #   ansible.playbook = "site.yml"
   #   ansible.groups = {  
@@ -64,5 +99,5 @@ Vagrant.configure(API_VERSION) do |config|
   #     "kube-cluster:children" => ["master", "worker"]
   #   }
   # end
-  config.vm.post_up_message = "Done !!!"
+  config.vm.post_up_message = "Node UP !!!"
 end
