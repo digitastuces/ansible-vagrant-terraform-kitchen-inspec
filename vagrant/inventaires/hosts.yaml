@@ -1,0 +1,25 @@
+---
+all:
+  vars:
+    ansible_user: vagrant
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    env: "env_defaut"
+  children:
+    prod:
+      hosts:
+        worker1: {}
+        worker2: {}
+      vars:
+        ansible_password: vagrant
+        env: "production"
+    dev:
+      hosts:
+        worker3: {}
+      vars:
+        ansible_password: vagrant
+        env: "development"
+    master:
+      hosts:
+        master1: {}
+# vars_files: 
+#   - nginx-vars.yml

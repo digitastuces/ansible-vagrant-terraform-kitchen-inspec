@@ -16,7 +16,6 @@ sudo echo "192.168.56.12   master2" >> /etc/hosts
 sudo echo "192.168.56.21   worker1" >> /etc/hosts
 sudo echo "192.168.56.22   worker2" >> /etc/hosts
 sudo echo "192.168.56.23   worker3" >> /etc/hosts
-sudo apt install sshpass
 cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
 sudo chmod 400  /vagrant/id_rsa
 SCRIPT
@@ -51,7 +50,7 @@ Vagrant.configure(API_VERSION) do |config|
       master.vm.network "forwarded_port", guest: 80,  host: 8081, auto_correct: true
       master.vm.network "forwarded_port", guest: 443, host: 8443, auto_correct: true
       master.vm.hostname = "master#{i}"
-      master.vm.provision "shell",inline: "cp /vagrant/hosts /home/vagrant/hosts"
+      master.vm.provision "shell",inline: "cp /vagrant/.hosts /home/vagrant/hosts"
 
       master.vm.provision "ansible" do |ansible|
         ansible.playbook = "playbook-ansible.yml"
