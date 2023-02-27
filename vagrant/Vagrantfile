@@ -17,16 +17,16 @@ sudo echo "192.168.56.21   worker1" >> /etc/hosts
 sudo echo "192.168.56.22   worker2" >> /etc/hosts
 sudo echo "192.168.56.23   worker3" >> /etc/hosts
 sudo apt install sshpass
-cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
-sudo chmod 400  /vagrant/id_rsa
+cat /vagrant/ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+sudo chmod 400  /vagrant/ssh/id_rsa
 SCRIPT
 
 Vagrant.configure(API_VERSION) do |config|
   config.vm.synced_folder ".", "/vagrant"
   config.vm.provision "file", source: "~/.ssh/vagrant_rsa.pub", destination: "~/.ssh/vagrant_rsa.pub"
-  config.vm.provision "file", source: "./id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
-  config.vm.provision "shell", inline: "cp /vagrant/id_rsa ~/.ssh/id_rsa"
-  config.vm.provision "file", source: "./.config", destination: "~/.ssh/config"
+  config.vm.provision "file", source: "./ssh/id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
+  config.vm.provision "shell", inline: "cp /vagrant/ssh/id_rsa /home/vagrant/.ssh/id_rsa"
+  config.vm.provision "file", source: "./ssh/config", destination: "~/.ssh/config"
   config.vm.provision "shell" do |s|
     ssh_pub_key = File.readlines("/home/adieng/.ssh/vagrant_rsa.pub").first.strip
     s.inline = <<-SHELL
@@ -34,6 +34,7 @@ Vagrant.configure(API_VERSION) do |config|
     sudo mkdir -p /home/vagrant/.ssh/ && sudo chown -R vagrant:vagrant $_
     echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
     echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+    sudo chmod 400  /home/vagrant/.ssh/id_rsa
     SHELL
   end
   
@@ -50,11 +51,11 @@ Vagrant.configure(API_VERSION) do |config|
       master.vm.network :private_network, ip: "192.168.56.1#{i}"
       master.vm.network "forwarded_port", guest: 80,  host: 8081, auto_correct: true
       master.vm.network "forwarded_port", guest: 443, host: 8443, auto_correct: true
+
       master.vm.hostname = "master#{i}"
-      master.vm.provision "shell",inline: "cp /vagrant/hosts /home/vagrant/hosts"
 
       master.vm.provision "ansible" do |ansible|
-        ansible.playbook = "playbook-ansible.yml"
+        ansible.playbook = "data/playbook-ansible.yml"
       end
 
       # Installing required packages for ansible master
@@ -74,7 +75,7 @@ Vagrant.configure(API_VERSION) do |config|
       worker.vm.hostname = "worker#{i}"
 
       worker.vm.provision "ansible" do |ansible|
-        ansible.playbook = "playbook-ansible.yml"
+        ansible.playbook = "data/playbook-ansible.yml"
       end
 
       # La commande Vagrant PUSH permet d’invoquer une commande shell ou un script arbitraire dans le cadre d’un push.
