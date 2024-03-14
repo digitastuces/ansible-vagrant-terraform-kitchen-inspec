@@ -1,0 +1,10 @@
+---
+- name: update web servers
+  hosts: predator
+  become: true
+
+  tasks:
+  - name: ensure nginx is at the latest version
+    ansible.builtin.package:
+      name: nginx
+      state: latest
