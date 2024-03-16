@@ -1,0 +1,6 @@
+---
+mysql_user: "admin"
+mysql_password: "secret"
+mysql_dbname: "blog"
+db_host: "192.168.56.21"
+webserver_host: "192.168.56.22"

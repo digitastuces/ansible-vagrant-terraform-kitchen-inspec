@@ -1,6 +1,6 @@
 ---
 - name: update web servers
-  hosts: predator
+  hosts: localhost
   become: true
 
   tasks:

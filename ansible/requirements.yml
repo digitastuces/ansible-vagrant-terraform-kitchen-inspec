@@ -1,0 +1,8 @@
+---
+roles:
+  - src: https://github.com/jengsala/web
+    version: main
+    name: web
+  - src: https://github.com/ansible-collections/community.mysql
+    version: main
+    name: database

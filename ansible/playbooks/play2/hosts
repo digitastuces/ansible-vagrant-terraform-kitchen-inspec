@@ -1,0 +1,4 @@
+[web]
+vmubuntu1 ansible_user=vagrant
+[db]
+vmfedora1 ansible_user=vagrant

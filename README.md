@@ -1,4 +1,12 @@
+# ANSIBLE
+
+Refs:
+
+- https://www.editions-eni.fr/livre/ansible-gerez-la-configuration-de-vos-serveurs-et-le-deploiement-de-vos-applications-3e-edition-9782409039
+
+
 ## Les principales commandes Ansible
+
 
 Ansible est livré avec un certain nombre de commandes permettant soit de lancer des actions ou, soit d'obtenir de l'information sur l'environnement d'exécution Ansible :
 
@@ -48,6 +56,10 @@ Si vous voulez continuer votre apprentissage d'ansible, je conseille de lire les
     Comment distribuer tout ce qui compose un environnement Ansible avec les collections Ansible
     Ansible ne permet pas que de piloter la configuration de machines Linux ! On peut également gérer des machines tournant sous Windows avec Ansible
     Pour répondre à vos questions.
+
+## FILTRES
+
+https://www.editions-eni.fr/livre/ansible-gerez-la-configuration-de-vos-serveurs-et-le-deploiement-de-vos-applications-3e-edition-9782409039720/extraits/ecriture-de-filtres-jinja-et-mecanisme-de-lookup
 
 
 # ansible-vagrant-terraform-kitchen-inspec

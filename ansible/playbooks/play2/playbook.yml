@@ -1,0 +1,163 @@
+---
+# WEB SERVER
+- hosts: web
+  become: true
+  vars_files: vars/main.yml
+
+  tasks:
+  - name: Install apache and php last version for Debian os family
+    apt:
+      name:
+        - apache2
+        - php
+        - php-mysql
+      state: present
+      update_cache: yes
+    when: ansible_facts['os_family'] == "Debian"
+
+  - name: Install apache and php last version for RedHat os family
+    yum:
+      name: ['httpd', 'php', 'php-mysqlnd']
+      state: present
+      update_cache: yes
+    when: ansible_facts['os_family'] == "RedHat"
+
+  # - fail:
+  #   when: 1 == 1
+
+  - name: Give writable mode to http folder
+    file:
+      path: /var/www/html
+      state: directory
+      mode: '0755'
+
+  - name: Remove default index.html
+    file:
+      path: /var/www/html/index.html
+      state: absent
+
+  - name: Upload web app source
+    copy:
+      src: app/
+      dest: /var/www/html/
+
+  - name: Deploy php database config
+    template: # Modifier dynamiquement un fichier avant de l'envoyer sur le serveur cible
+      src: "db-config.php.j2"
+      dest: "/var/www/html/db-config.php"
+
+  - name: Ensure apache service is start (Debian os family)
+    service:
+      name: apache2
+      state: started
+      enabled: yes
+    when: ansible_facts['os_family'] == "Debian"
+
+  - name: ensure apache service is start (RedHat os family)
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+    when: ansible_facts['os_family'] == "RedHat"
+
+  - name: enable connection with remote database (RedHat os family)
+    shell: setsebool -P httpd_can_network_connect_db 1
+    when: ansible_facts['os_family'] == "RedHat"
+
+# DATABASE SERVER
+- hosts: db
+  become: true
+  vars_files: vars/main.yml
+  vars:
+    root_password: "my_secret_password"
+
+  tasks:
+  - name: Install mysql
+    apt:
+      name:
+        - mysql-server
+        - python3-mysqldb # for mysql_db and mysql_user modules
+      state: present
+      update_cache: yes
+    when: ansible_facts['os_family'] == "Debian"
+
+  - name: install mysql repo (Fedora)
+    yum:
+      name: "http://repo.mysql.com/mysql80-community-release-fc{{ ansible_facts['distribution_major_version'] }}.rpm"
+      state: present
+      update_cache: yes
+    when: ansible_facts['distribution'] == "Fedora"
+
+  - name: install mysql repo (CENTOS or RedHat)
+    yum:
+      name: "http://repo.mysql.com/mysql80-community-release-el{{ ansible_facts['distribution_major_version'] }}.rpm"
+      state: present
+      update_cache: yes
+    when: ansible_facts['os_family'] == "RedHat" and ansible_facts['distribution'] != "Fedora"
+
+  - name: install mysql package (RedHat os family)
+    yum:
+      name: mysql-community-server
+      state: present
+      disablerepo: mysql80-community
+      enablerepo: mysql57-community
+    when: ansible_facts['os_family'] == "RedHat"
+
+  - name: install PyMySQL from pip (RedHat os family)
+    pip:
+      name: PyMySQL # for mysql_db and mysql_user modules
+    when: ansible_facts['os_family'] == "RedHat"
+
+  - name: Create MySQL client config
+    copy:
+      dest: "/root/.my.cnf"
+      content: |
+        [client]
+        user=root
+        password={{ root_password }}
+      mode: 0400
+
+  - name: Allow external MySQL connexions (1/2)
+    lineinfile:
+      path: /etc/mysql/mysql.conf.d/mysqld.cnf
+      regexp: '^skip-external-locking'
+      line: "# skip-external-locking"
+    notify: Restart mysql
+
+  - name: Allow external MySQL connexions (2/2)
+    lineinfile: # Pour modifier des fichiers distants
+      path: /etc/mysql/mysql.conf.d/mysqld.cnf
+      regexp: '^bind-address'
+      line: "# bind-address"
+    notify: Restart mysql
+
+  - name: Upload sql table config
+    template:
+      src: "table.sql.j2"
+      dest: "/tmp/table.sql"
+
+  - name: Add sql table to database
+    mysql_db:
+      name: "{{ mysql_dbname }}"
+      state: present
+      login_user: root
+      login_password: '{{ root_password }}'
+      state: import
+      target: /tmp/table.sql
+
+  - name: "Create {{ mysql_user }} with all {{ mysql_dbname }} privileges"
+    mysql_user:
+      name: "{{ mysql_user }}"
+      password: "{{ mysql_password }}"
+      priv: "{{ mysql_dbname }}.*:ALL"
+      host: "{{ webserver_host }}"
+      state: present
+      login_user: root
+      login_password: '{{ root_password }}'
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  handlers:
+    - name: Restart mysql
+      service:
+        name: mysql
+        state: restarted

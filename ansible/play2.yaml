@@ -1,0 +1,72 @@
+---
+- name: toturiel
+  hosts: localhost
+  become: true
+  vars_files:
+  - values/variables.yml
+  #   - secrets/credentials.yml
+
+  tasks:
+  - name: Show ansible_selinux var
+    ansible.builtin.debug:
+      msg: "{{ ansible_selinux }}"
+  # Sauvegarde du résultat d’une tache Ansible dans une variable
+  - name: Ping localhost
+    ansible.builtin.ping:
+    register: test
+  - name: display var
+    ansible.builtin.debug:
+      msg: "{{ test.ping }}"
+  # Les boucles standards : with_items ou loop
+  - name: add several package
+    ansible.builtin.package:
+      name={{ item }}
+      state=present
+    with_items:
+    - nginx
+    - wget
+    - git
+  - name: download pip script
+    get_url:
+      url: https://bootstrap.pypa.io/pip/2.7/get-pip.py
+      dest: /tmp/get-pip.py
+  ## Les boucles imbriquées : with_nested
+  - name: print nested loop
+    vars:
+      keys:
+        - key1
+        - key2
+        - key3
+    debug: msg=" ansible {{ item[0] }} on day {{ item[1] }} is {{ item[2] }} - Variable {{ item[3] }}"
+    with_nested:
+    - [ 'training', 'lab', 'handson' ]
+    - [ 1, 2, 3 ]
+    - [ 'good', 'bad', 'great' ]
+    - '{{ keys }}'
+  ## Les boucles sur dictionnaire: with_dict
+  - name: Print phone records
+    vars:
+      users:
+        alice:
+          name: Alice
+          telephone: 123-456-7890
+        bob:
+          name: Bob
+          telephone: 987-654-3210
+    ansible.builtin.debug:
+      msg="User {{ item.key }} is {{ item.value.name }} ({{ item.value.telephone }})"
+    with_dict: "{{users}}"
+  ## Do until
+  - name: Retry until a file is available
+    shell: ls -lrt /tmp/myprocess.pid
+    register: lsresult
+    until: "lsresult is not failed"
+    retries: 10
+    delay: 10
+  ### Les filtres Ansible
+  - name: Les filtres Ansible
+    ansible.builtin.shell: cat /home/adieng/perso/digitastuces/automatisation/ansible/filtres/monfichier.json
+    register: result
+
+  - ansible.builtin.set_fact:
+      myvar: "{{ result.stdout | from_json }}"

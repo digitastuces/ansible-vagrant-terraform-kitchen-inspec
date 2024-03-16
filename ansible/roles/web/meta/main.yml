@@ -1,0 +1,32 @@
+galaxy_info:
+  author: Adama DIENG
+  description: install apache and php with a test web app
+  company: https://digitastuces.com
+
+  license: MIT
+
+  min_ansible_version: 1.6
+
+  platforms:
+  - name: Fedora
+    versions:
+      - 28
+      - 29
+      - 30
+      - 31
+  - name: Ubuntu
+    versions:
+      - all
+  - name: Debian
+    versions:
+      - all
+  - name: EL
+    versions:
+      - 7
+
+  galaxy_tags:
+    - web
+    - apache
+    - php
+
+dependencies: []
